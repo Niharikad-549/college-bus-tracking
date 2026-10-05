@@ -167,6 +167,10 @@ def bus_location(request, bus_id):
 	return Response({
 		'bus_id': bus.pk,
 		'bus_number': bus.bus_number,
+		'driver_name': (
+			bus.driver.get_full_name() or bus.driver.username
+			if bus.driver else 'Driver not assigned'
+		),
 		'location': BusLocationSerializer(location).data if location else None,
 		'trip_status': TripStatusSerializer(trip).data if trip else {
 			'is_active': False,

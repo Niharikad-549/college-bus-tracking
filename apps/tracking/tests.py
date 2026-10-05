@@ -78,6 +78,10 @@ class AdminManagementTests(TestCase):
 		student_response = self.client.get(reverse('student_dashboard'))
 		self.assertEqual(student_response.status_code, 200)
 		self.assertContains(student_response, 'data-route-map')
+		self.assertContains(student_response, 'data-live-student="true"')
+		self.assertContains(student_response, f'data-pickup-stop-id="{self.stop.pk}"')
+		self.assertContains(student_response, 'data-center-bus')
+		self.assertContains(student_response, 'data-student-live-card')
 		self.assertContains(student_response, reverse('route_stops_api', args=[self.route.pk]))
 		self.assertContains(student_response, reverse('api_bus_location', args=[self.bus.pk]))
 
@@ -366,6 +370,7 @@ class DriverLocationApiTests(TestCase):
 				response = self.client.get(url)
 				self.assertEqual(response.status_code, 200)
 				self.assertEqual(response.json()['location']['id'], location.pk)
+				self.assertEqual(response.json()['driver_name'], self.driver.username)
 				self.assertFalse(response.json()['trip_status']['is_active'])
 
 		self.login_as(self.other_student)

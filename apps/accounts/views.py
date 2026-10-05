@@ -91,11 +91,12 @@ def driver_dashboard(request):
 
 @role_required(User.Role.STUDENT)
 def student_dashboard(request):
-	try:
-		student_route = request.user.student_profile.route
-	except StudentProfile.DoesNotExist:
-		student_route = None
-	return render(request, 'accounts/dashboard_student.html', {'student_route': student_route})
+	student_profile = StudentProfile.objects.filter(user=request.user).select_related('route', 'pickup_stop').first()
+	return render(request, 'accounts/dashboard_student.html', {
+		'student_route': student_profile.route if student_profile else None,
+		'student_profile': student_profile,
+		'student_pickup_stop_id': student_profile.pickup_stop_id if student_profile else None,
+	})
 
 
 @login_required

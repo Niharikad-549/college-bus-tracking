@@ -1,14 +1,73 @@
 {% extends 'base.html' %}
-{% block title %}Student dashboard | Campus Transit{% endblock %}
+{% load static %}
+{% block title %}Live bus tracking | Campus Transit{% endblock %}
 {% block content %}
-<section class="dashboard-page">
-    <p class="form-kicker">STUDENT PORTAL</p>
-    <h1>Student dashboard</h1>
-    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your bus and pickup details will appear here.</p>
+<section class="student-live-page">
     {% if student_route %}
-        {% include 'tracking/_route_map.html' with route=student_route %}
+        <div class="student-live-layout" data-student-map-layout>
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+            <div class="student-route-map-shell">
+                <div class="route-map student-route-map" data-route-map data-live-student="true"
+                    data-stops-url="{% url 'route_stops_api' student_route.id %}"
+                    data-location-url="{% url 'api_bus_location' student_route.bus_id %}"
+                    data-pickup-stop-id="{{ student_pickup_stop_id|default:'' }}"
+                    role="application" aria-label="Live map for {{ student_route.route_name }}">
+                    <p class="map-status" data-map-status role="status">Loading route...</p>
+                </div>
+            </div>
+
+            <button class="center-bus-button" type="button" data-center-bus disabled>
+                <span class="center-bus-icon" aria-hidden="true">◎</span> Center on bus
+            </button>
+
+            <aside class="student-status-card" data-student-live-card aria-label="Live bus status">
+                <div class="sheet-grabber" aria-hidden="true"><span></span></div>
+                <div class="student-status-heading">
+                    <div>
+                        <p class="form-kicker">LIVE CAMPUS TRANSIT</p>
+                        <h1>{{ student_route.route_name }}</h1>
+                    </div>
+                    <span class="live-status-dot" data-live-indicator aria-hidden="true"></span>
+                </div>
+                <div class="student-bus-summary">
+                    <div>
+                        <span class="student-detail-label">YOUR BUS</span>
+                        <strong data-bus-number>{{ student_route.bus.bus_number }}</strong>
+                    </div>
+                    <div>
+                        <span class="student-detail-label">DRIVER</span>
+                        <strong data-driver-name>{{ student_route.bus.driver.get_full_name|default:student_route.bus.driver.username|default:'Not assigned' }}</strong>
+                    </div>
+                </div>
+                <div class="student-trip-state" data-trip-status>Checking trip status…</div>
+                <p class="student-live-message" data-location-status role="status">Connecting to the bus…</p>
+                <div class="student-live-details">
+                    <div>
+                        <span class="student-detail-label">LAST UPDATED</span>
+                        <strong data-last-updated>Waiting for location</strong>
+                    </div>
+                    <div>
+                        <span class="student-detail-label">SPEED</span>
+                        <strong data-speed>--</strong>
+                    </div>
+                    <div class="student-pickup-detail">
+                        <span class="student-detail-label">YOUR PICKUP</span>
+                        <strong>{% if student_profile.pickup_stop %}{{ student_profile.pickup_stop.stop_name }}{% else %}Not assigned{% endif %}</strong>
+                    </div>
+                </div>
+            </aside>
+        </div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+        <script src="{% static 'js/route-map.js' %}" defer></script>
     {% else %}
-        <div class="dashboard-placeholder"><span class="placeholder-mark">03</span><p>Your route and pickup have not been assigned yet. Contact the campus transit office to finish your setup.</p></div>
+        <div class="student-no-route">
+            <span class="placeholder-mark">03</span>
+            <div>
+                <p class="form-kicker">STUDENT PORTAL</p>
+                <h1>Your route is not assigned yet</h1>
+                <p>Contact the campus transit office to add your route and pickup stop.</p>
+            </div>
+        </div>
     {% endif %}
 </section>
 {% endblock %}
