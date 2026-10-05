@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Admin dashboard | Campus Transit{% endblock %}
+{% block content %}
+<section class="dashboard-page">
+    <p class="form-kicker">ADMINISTRATION</p>
+    <h1>Admin dashboard</h1>
+    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your campus transit overview will appear here.</p>
+    <div class="dashboard-placeholder"><span class="placeholder-mark">01</span><p>Fleet, routes, and rider activity will be managed here.</p></div>
+</section>
+{% endblock %}

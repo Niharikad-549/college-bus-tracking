@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Log in | Campus Transit{% endblock %}
+{% block content %}
+<section class="auth-layout">
+    <aside class="auth-aside">
+        <div class="eyebrow"><span class="status-dot"></span> COLLEGE TRANSIT</div>
+        <div class="aside-copy">
+            <p class="aside-kicker">Your campus, in motion</p>
+            <h1>Every ride,<br>right on route.</h1>
+            <p class="aside-description">A calmer way to follow your college bus, wherever the day takes you.</p>
+        </div>
+        <div class="route-art" aria-hidden="true">
+            <span class="route-stop route-stop-one"></span>
+            <span class="route-stop route-stop-two"></span>
+            <span class="route-stop route-stop-three"></span>
+            <span class="route-caption">NORTH CAMPUS <span>•</span> 06:42 AM</span>
+        </div>
+        <p class="aside-foot">BUILT FOR THE DAILY JOURNEY</p>
+    </aside>
+    <section class="auth-content" aria-labelledby="login-title">
+        <div class="auth-form-wrap">
+            <p class="form-kicker">WELCOME BACK</p>
+            <h2 id="login-title">Sign in to your account</h2>
+            <p class="form-intro">Use your college transit account to continue.</p>
+            <form class="form-stack" method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <div class="field">
+                    <label for="id_username">Username</label>
+                    <input id="id_username" name="username" type="text" autocomplete="username" required autofocus>
+                    {% for error in form.username.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="field">
+                    <label for="id_password">Password</label>
+                    <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+                    {% for error in form.password.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <input type="hidden" name="next" value="{{ next }}">
+                <button class="button button-primary button-wide" type="submit">Sign in <span aria-hidden="true">→</span></button>
+            </form>
+            <p class="form-switch">New to campus transit? <a href="{% url 'register' %}">Create a student account</a></p>
+        </div>
+    </section>
+</section>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Access denied | Campus Transit{% endblock %}
+{% block content %}
+<section class="notice-page">
+    <p class="form-kicker">403 · ACCESS RESTRICTED</p>
+    <h1>Access denied</h1>
+    <p>Your account does not have permission to view this dashboard.</p>
+    <a class="button button-primary" href="{% url 'home' %}">Go to my dashboard</a>
+</section>
+{% endblock %}

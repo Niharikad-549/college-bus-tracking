@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Student dashboard | Campus Transit{% endblock %}
+{% block content %}
+<section class="dashboard-page">
+    <p class="form-kicker">STUDENT PORTAL</p>
+    <h1>Student dashboard</h1>
+    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your bus and pickup details will appear here.</p>
+    <div class="dashboard-placeholder"><span class="placeholder-mark">03</span><p>Your next pickup and live bus location will be shown here.</p></div>
+</section>
+{% endblock %}

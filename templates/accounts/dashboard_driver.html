@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Driver dashboard | Campus Transit{% endblock %}
+{% block content %}
+<section class="dashboard-page">
+    <p class="form-kicker">DRIVER PORTAL</p>
+    <h1>Driver dashboard</h1>
+    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your route and trip controls will appear here.</p>
+    <div class="dashboard-placeholder"><span class="placeholder-mark">02</span><p>Your assigned bus, route, and trip status will be shown here.</p></div>
+</section>
+{% endblock %}
