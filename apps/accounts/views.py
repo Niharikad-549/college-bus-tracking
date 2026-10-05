@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import StudentRegistrationForm
 from .models import User
-from apps.tracking.models import StudentProfile
+from apps.tracking.models import Bus, StudentProfile, Trip
 
 
 ROLE_DASHBOARDS = {
@@ -65,7 +65,28 @@ def logout_view(request):
 
 @role_required(User.Role.DRIVER)
 def driver_dashboard(request):
-	return render(request, 'accounts/dashboard_driver.html')
+	assigned_buses = list(
+		Bus.objects.filter(driver=request.user).prefetch_related('routes').order_by('bus_number')
+	)
+	active_trip = Trip.objects.filter(
+		bus__driver=request.user,
+		is_active=True,
+	).select_related('bus').first()
+	requested_bus_id = request.GET.get('bus_id')
+	driver_bus = next(
+		(bus for bus in assigned_buses if str(bus.pk) == requested_bus_id),
+		None,
+	)
+	if driver_bus is None:
+		driver_bus = active_trip.bus if active_trip else (assigned_buses[0] if assigned_buses else None)
+	active_trip = Trip.objects.filter(bus=driver_bus, is_active=True).first() if driver_bus else None
+	driver_route = driver_bus.routes.order_by('pk').first() if driver_bus else None
+	return render(request, 'accounts/dashboard_driver.html', {
+		'assigned_buses': assigned_buses,
+		'driver_bus': driver_bus,
+		'driver_route': driver_route,
+		'active_trip': active_trip,
+	})
 
 
 @role_required(User.Role.STUDENT)

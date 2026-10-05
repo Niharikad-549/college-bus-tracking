@@ -156,11 +156,38 @@ button, input { font: inherit; }
 .route-map { position: relative; width: 100%; height: clamp(300px, 48vw, 480px); overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #e7eee8; }
 .route-map .map-status { position: absolute; z-index: 500; top: 10px; right: 10px; left: auto; max-width: calc(100% - 20px); margin: 0; padding: 8px 11px; border: 1px solid rgba(23,63,53,.13); border-radius: 5px; background: rgba(255,255,255,.94); color: var(--muted); font-size: 12px; box-shadow: 0 1px 5px rgba(20,40,30,.12); }
 .route-map .map-status:empty { display: none; }
+.route-location-status { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .route-stop-marker { display: grid; width: 28px; height: 28px; place-items: center; border: 2px solid white; border-radius: 50%; background: var(--green); color: white; font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 800; box-shadow: 0 2px 7px rgba(16,47,40,.34); }
+.bus-location-marker { display: grid; width: 42px; height: 30px; place-items: center; border: 2px solid white; border-radius: 5px; background: var(--coral); color: #442318; font-family: 'Manrope', sans-serif; font-size: 9px; font-weight: 800; box-shadow: 0 2px 8px rgba(16,47,40,.35); }
 .route-stop-popup { min-width: 125px; }
 .route-stop-popup strong, .route-stop-popup span { display: block; }
 .route-stop-popup strong { margin-bottom: 3px; color: var(--ink); font-size: 13px; }
 .route-stop-popup span { color: var(--muted); font-size: 11px; }
+
+.driver-trip-panel { display: grid; gap: 22px; max-width: 760px; margin-top: 28px; padding: 22px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.driver-assignment { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.driver-assignment .form-kicker { margin-bottom: 7px; }
+.driver-assignment h2 { margin: 0; font-family: 'Manrope', sans-serif; font-size: 26px; }
+.driver-assignment p:not(.form-kicker) { margin: 7px 0 0; color: var(--muted); }
+.driver-bus-select-label { display: block; margin: 16px 0 7px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.driver-trip-status-row { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 14px; font-weight: 700; }
+.trip-status-dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca9a1; }
+.trip-status-dot.is-active { background: #48966a; box-shadow: 0 0 0 4px #e3f2e8; }
+.driver-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.driver-button { min-height: 62px; border-radius: 8px; font-family: 'Manrope', sans-serif; font-size: 18px; }
+.driver-button-start { background: #276c4a; color: white; }
+.driver-button-start:hover { background: #1e573b; }
+.driver-button-stop { background: #a84e38; color: white; }
+.driver-button-stop:hover { background: #883b29; }
+.driver-button-icon { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 12px; }
+.driver-retry-button { min-height: 52px; }
+.driver-live-readout { display: grid; gap: 14px; padding-top: 19px; border-top: 1px solid var(--line); }
+.driver-live-readout > div { display: grid; gap: 5px; }
+.readout-label { color: #78887f; font-size: 10px; font-weight: 700; letter-spacing: .8px; }
+.driver-live-readout strong { color: var(--ink); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.driver-network-message { min-height: 0; margin: -8px 0 0; color: #9c4d35; font-size: 13px; line-height: 1.5; }
+.driver-network-message:empty { display: none; }
+[hidden] { display: none !important; }
 
 @media (min-width: 700px) {
     .metric-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
@@ -169,6 +196,9 @@ button, input { font: inherit; }
     .management-link { padding-right: 12px; padding-left: 12px; }
     .admin-model-form { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
     .admin-model-form .map-picker, .admin-model-form .form-actions, .admin-model-form .form-errors { grid-column: 1 / -1; }
+    .driver-trip-panel { padding: 30px; }
+    .driver-actions { grid-template-columns: 1fr 1fr; }
+    .driver-live-readout { grid-template-columns: 1fr 1fr 1fr; }
 }
 
 @media (max-width: 520px) {

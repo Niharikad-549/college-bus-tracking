@@ -8,9 +8,10 @@
         </div>
         <span class="route-map-meta">{{ route.stops.count }} stops</span>
     </div>
-    <div class="route-map" data-route-map data-stops-url="{% url 'route_stops_api' route.id %}" role="application" aria-label="Map of stops on {{ route.route_name }}">
+    <div class="route-map" data-route-map data-stops-url="{% url 'route_stops_api' route.id %}" data-location-url="{% url 'api_bus_location' route.bus_id %}" role="application" aria-label="Map of stops on {{ route.route_name }}">
         <p class="map-status" data-map-status role="status">Loading route stops...</p>
     </div>
+    <p class="route-location-status" data-location-status role="status">Waiting for the latest bus location...</p>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{% static 'js/route-map.js' %}" defer></script>

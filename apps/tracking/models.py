@@ -68,6 +68,13 @@ class Trip(models.Model):
 
 	class Meta:
 		ordering = ['-started_at']
+		constraints = [
+			models.UniqueConstraint(
+				fields=['bus'],
+				condition=models.Q(is_active=True),
+				name='unique_active_trip_per_bus',
+			),
+		]
 
 	def __str__(self):
 		return f'{self.bus.bus_number} trip started {self.started_at:%Y-%m-%d %H:%M}'

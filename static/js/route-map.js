@@ -59,6 +59,68 @@
                 map.setView(coordinates[0], 14);
             }
 
+            const locationStatus = element.parentElement.querySelector('[data-location-status]');
+            let busMarker = null;
+            let locationRequestInProgress = false;
+            const refreshBusLocation = async () => {
+                if (!element.dataset.locationUrl || locationRequestInProgress) {
+                    return;
+                }
+                locationRequestInProgress = true;
+                try {
+                    const locationResponse = await fetch(element.dataset.locationUrl, {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    const locationData = await locationResponse.json();
+                    if (!locationResponse.ok) {
+                        throw new Error(locationData.detail || 'Location is unavailable.');
+                    }
+                    if (!locationData.location) {
+                        locationStatus.textContent = locationData.trip_status.is_active
+                            ? 'Trip active · waiting for the first GPS update.'
+                            : 'No bus location has been reported yet.';
+                        return;
+                    }
+
+                    const point = [Number(locationData.location.latitude), Number(locationData.location.longitude)];
+                    if (!busMarker) {
+                        busMarker = L.marker(point, {
+                            icon: L.divIcon({
+                                className: '',
+                                html: '<span class="bus-location-marker" aria-hidden="true">BUS</span>',
+                                iconSize: [42, 30],
+                                iconAnchor: [21, 15]
+                            }),
+                            zIndexOffset: 1000
+                        }).addTo(map);
+                    } else {
+                        busMarker.setLatLng(point);
+                    }
+
+                    const popup = document.createElement('div');
+                    popup.className = 'route-stop-popup';
+                    const busName = document.createElement('strong');
+                    busName.textContent = locationData.bus_number;
+                    const tripState = document.createElement('span');
+                    tripState.textContent = locationData.trip_status.is_active ? 'Trip active' : 'Trip stopped';
+                    popup.append(busName, tripState);
+                    busMarker.bindPopup(popup);
+
+                    const updatedAt = new Date(locationData.location.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    });
+                    locationStatus.textContent = `${locationData.bus_number} · ${locationData.trip_status.is_active ? 'Trip active' : 'Trip stopped'} · Updated ${updatedAt}`;
+                } catch (error) {
+                    locationStatus.textContent = 'Bus location is temporarily unavailable.';
+                } finally {
+                    locationRequestInProgress = false;
+                }
+            };
+
+            refreshBusLocation();
+            window.setInterval(refreshBusLocation, 5000);
+
             status.textContent = 'Showing direct route between stops.';
             try {
                 const osrmCoordinates = stops

@@ -1,12 +1,16 @@
+from decimal import Decimal
 from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.tracking.forms import BusForm, StudentProfileForm, StopForm
-from apps.tracking.models import Bus, Route, Stop, StudentProfile, Trip
+from apps.tracking.models import Bus, BusLocation, Route, Stop, StudentProfile, Trip
+from apps.tracking.services import record_bus_location
+from rest_framework.test import APIClient
 
 
 User = get_user_model()
@@ -75,6 +79,7 @@ class AdminManagementTests(TestCase):
 		self.assertEqual(student_response.status_code, 200)
 		self.assertContains(student_response, 'data-route-map')
 		self.assertContains(student_response, reverse('route_stops_api', args=[self.route.pk]))
+		self.assertContains(student_response, reverse('api_bus_location', args=[self.bus.pk]))
 
 	def test_lists_and_forms_render_for_each_resource(self):
 		for name in ('bus_list', 'route_list', 'stop_list', 'driver_list', 'student_list'):
@@ -245,3 +250,158 @@ class AdminManagementTests(TestCase):
 		self.assertEqual(User.objects.filter(username__startswith='vapi_driver_').count(), 2)
 		self.assertEqual(User.objects.filter(username__startswith='vapi_student_').count(), 6)
 		self.assertEqual(Trip.objects.filter(bus__bus_number='GJ15-BT-1042', is_active=True).count(), 1)
+
+
+class DriverLocationApiTests(TestCase):
+	def setUp(self):
+		self.driver = User.objects.create_user(
+			username='api_driver', password='DriverPassword123!', role=User.Role.DRIVER
+		)
+		self.other_driver = User.objects.create_user(
+			username='other_driver', password='DriverPassword123!', role=User.Role.DRIVER
+		)
+		self.student = User.objects.create_user(
+			username='api_student', password='StudentPassword123!', role=User.Role.STUDENT
+		)
+		self.other_student = User.objects.create_user(
+			username='other_student', password='StudentPassword123!', role=User.Role.STUDENT
+		)
+		self.admin = User.objects.create_user(
+			username='api_admin', password='AdminPassword123!', role=User.Role.ADMIN
+		)
+		self.bus = Bus.objects.create(bus_number='API-101', capacity=32, driver=self.driver)
+		self.other_bus = Bus.objects.create(bus_number='API-202', capacity=32, driver=self.other_driver)
+		self.route = Route.objects.create(route_name='API Route', bus=self.bus)
+		self.stop = Stop.objects.create(
+			route=self.route,
+			stop_name='API Stop',
+			latitude=20.371000,
+			longitude=72.904000,
+			stop_order=1,
+		)
+		StudentProfile.objects.create(user=self.student, route=self.route, pickup_stop=self.stop)
+		self.client = APIClient()
+
+	def login_as(self, user):
+		self.assertTrue(self.client.login(username=user.username, password='DriverPassword123!' if user.role == User.Role.DRIVER else f'{user.role.title()}Password123!'))
+
+	def post_json(self, name, payload=None):
+		return self.client.post(reverse(name), payload or {}, format='json')
+
+	def test_driver_can_start_only_one_active_trip_and_then_stop_it(self):
+		self.login_as(self.driver)
+		response = self.post_json('api_trip_start', {'bus_id': self.bus.pk})
+		self.assertEqual(response.status_code, 201)
+		trip_id = response.json()['id']
+
+		duplicate = self.post_json('api_trip_start', {'bus_id': self.bus.pk})
+		self.assertEqual(duplicate.status_code, 409)
+		self.assertEqual(Trip.objects.filter(bus=self.bus, is_active=True).count(), 1)
+
+		stopped = self.post_json('api_trip_stop', {'bus_id': self.bus.pk})
+		self.assertEqual(stopped.status_code, 200)
+		trip = Trip.objects.get(pk=trip_id)
+		self.assertFalse(trip.is_active)
+		self.assertIsNotNone(trip.ended_at)
+		self.assertEqual(self.post_json('api_trip_stop', {'bus_id': self.bus.pk}).status_code, 409)
+
+	def test_driver_dashboard_shows_assigned_bus_route_and_trip_controls(self):
+		Trip.objects.create(bus=self.bus, is_active=True)
+		self.login_as(self.driver)
+
+		response = self.client.get(reverse('driver_dashboard'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, self.bus.bus_number)
+		self.assertContains(response, self.route.route_name)
+		self.assertContains(response, 'data-start-trip')
+		self.assertContains(response, 'data-stop-trip')
+		self.assertContains(response, 'data-location-url')
+
+	def test_trip_and_location_posts_require_a_driver_and_assigned_bus(self):
+		self.login_as(self.student)
+		self.assertEqual(self.post_json('api_trip_start').status_code, 403)
+		self.assertEqual(self.post_json('api_driver_location', {
+			'latitude': 20.371, 'longitude': 72.904,
+		}).status_code, 403)
+
+		self.login_as(self.other_driver)
+		self.assertEqual(self.post_json('api_trip_start', {'bus_id': self.bus.pk}).status_code, 404)
+		self.assertEqual(self.post_json('api_driver_location', {
+			'bus_id': self.bus.pk, 'latitude': 20.371, 'longitude': 72.904,
+		}).status_code, 409)
+
+		self.client.logout()
+		self.assertEqual(self.post_json('api_trip_start', {'bus_id': self.bus.pk}).status_code, 403)
+
+	def test_location_requires_an_active_trip_and_valid_coordinates_and_speed(self):
+		self.login_as(self.driver)
+		valid_location = {'latitude': 20.371, 'longitude': 72.904, 'speed': 12.5}
+		self.assertEqual(self.post_json('api_driver_location', valid_location).status_code, 409)
+		self.post_json('api_trip_start', {'bus_id': self.bus.pk})
+
+		for invalid in (
+			{'latitude': 90.1, 'longitude': 72.904},
+			{'latitude': 20.371, 'longitude': -180.1},
+			{'latitude': 20.371, 'longitude': 72.904, 'speed': -1},
+			{'latitude': 20.371, 'longitude': 72.904, 'speed': 301},
+		):
+			with self.subTest(payload=invalid):
+				response = self.post_json('api_driver_location', invalid)
+				self.assertEqual(response.status_code, 400)
+
+		response = self.post_json('api_driver_location', valid_location)
+		self.assertEqual(response.status_code, 201)
+		location = BusLocation.objects.get(bus=self.bus)
+		self.assertEqual(location.latitude, Decimal('20.371000'))
+		self.assertEqual(location.speed, Decimal('12.50'))
+
+	def test_bus_location_is_visible_only_to_admin_driver_or_assigned_student(self):
+		location = record_bus_location(bus=self.bus, latitude=20.371, longitude=72.904, speed=0)
+		url = reverse('api_bus_location', args=[self.bus.pk])
+
+		for user in (self.driver, self.student, self.admin):
+			with self.subTest(user=user.username):
+				self.login_as(user)
+				response = self.client.get(url)
+				self.assertEqual(response.status_code, 200)
+				self.assertEqual(response.json()['location']['id'], location.pk)
+				self.assertFalse(response.json()['trip_status']['is_active'])
+
+		self.login_as(self.other_student)
+		self.assertEqual(self.client.get(url).status_code, 403)
+
+	def test_bus_location_reports_active_trip_status(self):
+		Trip.objects.create(bus=self.bus, is_active=True)
+		record_bus_location(bus=self.bus, latitude=20.371, longitude=72.904, speed=0)
+		latest = record_bus_location(bus=self.bus, latitude=20.372, longitude=72.905, speed=0)
+		tied_timestamp = timezone.now()
+		BusLocation.objects.filter(bus=self.bus).update(timestamp=tied_timestamp)
+		self.login_as(self.student)
+
+		response = self.client.get(reverse('api_bus_location', args=[self.bus.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(response.json()['trip_status']['is_active'])
+		self.assertEqual(response.json()['location']['id'], latest.pk)
+
+	def test_location_history_keeps_only_the_latest_500_per_bus(self):
+		old_locations = BusLocation.objects.bulk_create([
+			BusLocation(bus=self.bus, latitude=20, longitude=72, speed=0)
+			for _ in range(500)
+		])
+		newest = record_bus_location(bus=self.bus, latitude=21, longitude=73, speed=1)
+
+		self.assertEqual(BusLocation.objects.filter(bus=self.bus).count(), 500)
+		self.assertFalse(BusLocation.objects.filter(pk=old_locations[0].pk).exists())
+		self.assertTrue(BusLocation.objects.filter(pk=newest.pk).exists())
+		self.assertEqual(BusLocation.objects.filter(bus=self.other_bus).count(), 0)
+
+	def test_simulator_writes_location_and_starts_trip(self):
+		call_command('simulate_bus', route_id=self.route.pk, once=True, stdout=StringIO())
+
+		self.assertTrue(Trip.objects.filter(bus=self.bus, is_active=True).exists())
+		self.assertEqual(BusLocation.objects.filter(bus=self.bus).count(), 1)
+		location = BusLocation.objects.get(bus=self.bus)
+		self.assertEqual(location.latitude, Decimal(str(self.stop.latitude)))
+		self.assertEqual(location.longitude, Decimal(str(self.stop.longitude)))

@@ -4,7 +4,55 @@
 <section class="dashboard-page">
     <p class="form-kicker">DRIVER PORTAL</p>
     <h1>Driver dashboard</h1>
-    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your route and trip controls will appear here.</p>
-    <div class="dashboard-placeholder"><span class="placeholder-mark">02</span><p>Your assigned bus, route, and trip status will be shown here.</p></div>
+    <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your assigned service is ready below.</p>
+
+    {% if driver_bus %}
+        <section class="driver-trip-panel" data-driver-trip-panel
+            data-bus-id="{{ driver_bus.pk }}"
+            data-is-active="{{ active_trip.is_active|yesno:'true,false' }}"
+            data-start-url="{% url 'api_trip_start' %}"
+            data-stop-url="{% url 'api_trip_stop' %}"
+            data-location-url="{% url 'api_driver_location' %}">
+            <div class="driver-assignment">
+                <p class="form-kicker">ASSIGNED BUS</p>
+                <h2>{{ driver_bus.bus_number }}</h2>
+                <p>{% if driver_route %}{{ driver_route.route_name }}{% else %}No route assigned{% endif %}</p>
+                {% if assigned_buses|length > 1 %}
+                    <label class="driver-bus-select-label" for="driver-bus-select">Choose bus</label>
+                    <select id="driver-bus-select" class="form-control" data-bus-select>
+                        {% for bus in assigned_buses %}<option value="{{ bus.pk }}"{% if bus.pk == driver_bus.pk %} selected{% endif %}>{{ bus.bus_number }}</option>{% endfor %}
+                    </select>
+                {% endif %}
+            </div>
+
+            <div class="driver-trip-status-row">
+                <span class="trip-status-dot" data-trip-dot></span>
+                <span data-trip-status>{% if active_trip %}Trip active{% else %}Ready to start{% endif %}</span>
+            </div>
+
+            <div class="driver-actions">
+                <button class="button driver-button driver-button-start" type="button" data-start-trip{% if active_trip %} hidden{% endif %}>
+                    <span class="driver-button-icon" aria-hidden="true">▶</span> Start trip
+                </button>
+                <button class="button driver-button driver-button-stop" type="button" data-stop-trip{% if not active_trip %} hidden{% endif %}>
+                    <span class="driver-button-icon" aria-hidden="true">■</span> Stop trip
+                </button>
+                <button class="button button-quiet driver-retry-button" type="button" data-retry-gps hidden>Try GPS again</button>
+            </div>
+
+            <div class="driver-live-readout" aria-live="polite">
+                <div><span class="readout-label">LOCATION</span><strong data-gps-status>{% if active_trip %}Waiting for GPS…{% else %}Not sharing{% endif %}</strong></div>
+                <div><span class="readout-label">CURRENT COORDINATES</span><strong data-coordinates>Waiting for GPS</strong></div>
+                <div><span class="readout-label">LAST SENT</span><strong data-last-sent>Not sent yet</strong></div>
+            </div>
+            <p class="driver-network-message" data-network-message role="status"></p>
+        </section>
+    {% else %}
+        <div class="dashboard-placeholder"><span class="placeholder-mark">!</span><p>No bus is assigned to this driver account yet. Ask an administrator to assign your bus and route.</p></div>
+    {% endif %}
 </section>
+{% if driver_bus %}
+    {% load static %}
+    <script src="{% static 'js/driver-tracking.js' %}" defer></script>
+{% endif %}
 {% endblock %}
