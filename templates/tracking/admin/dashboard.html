@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Admin dashboard | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page">
+    <div class="admin-page-heading">
+        <div>
+            <p class="form-kicker">CAMPUS TRANSIT / ADMIN</p>
+            <h1>Management dashboard</h1>
+            <p class="form-intro">Manage the fleet, routes, stops, and rider assignments.</p>
+        </div>
+        <a class="button button-primary" href="{% url 'bus_add' %}">Add a bus <span aria-hidden="true">+</span></a>
+    </div>
+
+    <div class="metric-grid" aria-label="Transit totals">
+        <a class="metric-card" href="{% url 'bus_list' %}"><span class="metric-label">BUSES</span><strong>{{ total_buses }}</strong><span class="metric-note">Fleet vehicles</span></a>
+        <a class="metric-card" href="{% url 'route_list' %}"><span class="metric-label">ROUTES</span><strong>{{ total_routes }}</strong><span class="metric-note">Configured routes</span></a>
+        <a class="metric-card" href="{% url 'driver_list' %}"><span class="metric-label">DRIVERS</span><strong>{{ total_drivers }}</strong><span class="metric-note">Driver accounts</span></a>
+        <a class="metric-card" href="{% url 'student_list' %}"><span class="metric-label">STUDENTS</span><strong>{{ total_students }}</strong><span class="metric-note">Student accounts</span></a>
+        <div class="metric-card metric-card-accent"><span class="metric-label">ACTIVE TRIPS</span><strong>{{ active_trips }}</strong><span class="metric-note">Currently in progress</span></div>
+    </div>
+
+    <div class="admin-section-heading">
+        <div>
+            <p class="form-kicker">OPERATIONS</p>
+            <h2>Manage transit data</h2>
+        </div>
+    </div>
+    <div class="management-grid">
+        <a class="management-link" href="{% url 'bus_list' %}"><span class="management-number">01</span><span><strong>Buses</strong><small>Vehicles and assigned drivers</small></span><span class="management-arrow" aria-hidden="true">→</span></a>
+        <a class="management-link" href="{% url 'route_list' %}"><span class="management-number">02</span><span><strong>Routes</strong><small>Route names and assigned buses</small></span><span class="management-arrow" aria-hidden="true">→</span></a>
+        <a class="management-link" href="{% url 'stop_list' %}"><span class="management-number">03</span><span><strong>Stops</strong><small>Ordered stops and map coordinates</small></span><span class="management-arrow" aria-hidden="true">→</span></a>
+        <a class="management-link" href="{% url 'driver_list' %}"><span class="management-number">04</span><span><strong>Drivers</strong><small>Driver accounts and contact details</small></span><span class="management-arrow" aria-hidden="true">→</span></a>
+        <a class="management-link" href="{% url 'student_list' %}"><span class="management-number">05</span><span><strong>Students</strong><small>Routes and pickup assignments</small></span><span class="management-arrow" aria-hidden="true">→</span></a>
+    </div>
+</section>
+{% endblock %}

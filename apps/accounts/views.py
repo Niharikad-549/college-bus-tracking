@@ -62,11 +62,6 @@ def logout_view(request):
 	return redirect('login')
 
 
-@role_required(User.Role.ADMIN)
-def admin_dashboard(request):
-	return render(request, 'accounts/dashboard_admin.html')
-
-
 @role_required(User.Role.DRIVER)
 def driver_dashboard(request):
 	return render(request, 'accounts/dashboard_driver.html')

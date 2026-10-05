@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }} | Admin | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page delete-page">
+    <a class="admin-back-link" href="{{ list_url }}">← Back to list</a>
+    <p class="form-kicker">ADMIN / CONFIRM ACTION</p>
+    <h1>{{ page_title }}</h1>
+    <p class="delete-copy">Are you sure you want to delete <strong>{{ object }}</strong>? This action cannot be undone.</p>
+    <form method="post" class="form-actions">
+        {% csrf_token %}
+        <a class="button button-quiet" href="{{ list_url }}">Cancel</a>
+        <button class="button button-danger" type="submit">Confirm delete</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}{{ form_title }} | Admin | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page admin-form-page">
+    <a class="admin-back-link" href="{{ list_url }}">← Back to list</a>
+    <div class="form-page-heading">
+        <p class="form-kicker">ADMIN / TRANSIT DATA</p>
+        <h1>{{ form_title }}</h1>
+        <p class="form-intro">Enter the details below and save your changes.</p>
+    </div>
+    <form class="admin-model-form" method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}
+            <div class="field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
+                {% if field.field.widget.input_type == 'checkbox' %}
+                    <label class="checkbox-label" for="{{ field.id_for_label }}">{{ field }}<span>{{ field.label }}</span></label>
+                {% else %}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                {% endif %}
+                {% if field.help_text %}<p class="field-help">{{ field.help_text|safe }}</p>{% endif %}
+                {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            </div>
+        {% endfor %}
+
+        {% if is_stop_form %}
+            <section class="map-picker" aria-labelledby="map-title">
+                <div class="map-picker-heading">
+                    <div><p class="form-kicker">LOCATION</p><h2 id="map-title">Choose stop location</h2></div>
+                    <span class="map-hint">Click the map to place the pin</span>
+                </div>
+                <div id="stop-map" class="stop-map" role="application" aria-label="Map for selecting stop coordinates"></div>
+            </section>
+        {% endif %}
+        <div class="form-actions">
+            <a class="button button-quiet" href="{{ list_url }}">Cancel</a>
+            <button class="button button-primary" type="submit">Save changes</button>
+        </div>
+    </form>
+</section>
+{% if is_stop_form %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    (() => {
+        const latitudeField = document.getElementById('id_latitude');
+        const longitudeField = document.getElementById('id_longitude');
+        const vapiCenter = [20.3710, 72.9048];
+        const currentLocation = latitudeField.value && longitudeField.value
+            ? [Number(latitudeField.value), Number(longitudeField.value)]
+            : vapiCenter;
+        const map = L.map('stop-map').setView(currentLocation, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let marker = L.marker(currentLocation).addTo(map);
+        const updateCoordinates = (latitude, longitude) => {
+            latitudeField.value = latitude.toFixed(6);
+            longitudeField.value = longitude.toFixed(6);
+        };
+
+        map.on('click', (event) => {
+            marker.setLatLng(event.latlng);
+            updateCoordinates(event.latlng.lat, event.latlng.lng);
+        });
+        marker.on('dragend', () => {
+            const position = marker.getLatLng();
+            updateCoordinates(position.lat, position.lng);
+        });
+        marker.dragging.enable();
+    })();
+</script>
+{% endif %}
+{% endblock %}

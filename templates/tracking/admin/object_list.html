@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }} | Admin | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page">
+    <a class="admin-back-link" href="{% url 'admin_dashboard' %}">← Admin dashboard</a>
+    <div class="admin-page-heading admin-list-heading">
+        <div>
+            <p class="form-kicker">ADMIN / TRANSIT DATA</p>
+            <h1>{{ page_title }}</h1>
+        </div>
+        <a class="button button-primary" href="{{ add_url }}">Add {{ item_label }} <span aria-hidden="true">+</span></a>
+    </div>
+
+    <form class="table-search" method="get" role="search">
+        <label class="visually-hidden" for="id_search">Search {{ page_title|lower }}</label>
+        <input id="id_search" type="search" name="q" value="{{ request.GET.q }}" placeholder="Search {{ page_title|lower }}">
+        <button class="button button-quiet" type="submit">Search</button>
+        {% if request.GET.q %}<a class="clear-search" href="{% url request.resolver_match.url_name %}">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-frame">
+        <table class="admin-table">
+            <thead><tr>{% for header in headers %}<th scope="col">{{ header }}</th>{% endfor %}<th scope="col">Actions</th></tr></thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        {% for value in row.values %}<td>{{ value }}</td>{% endfor %}
+                        <td class="row-actions">
+                            <a class="text-action" href="{{ row.edit_url }}">Edit</a>
+                            <a class="text-action text-action-danger" href="{{ row.delete_url }}">Delete</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="empty-cell" colspan="{{ headers|length|add:1 }}">No {{ page_title|lower }} found. Add one to get started.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if is_paginated %}
+        <nav class="pagination" aria-label="Pagination">
+            {% if page_obj.has_previous %}<a href="?q={{ request.GET.q|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a href="?q={{ request.GET.q|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </nav>
+    {% endif %}
+</section>
+{% endblock %}
