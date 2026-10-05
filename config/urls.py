@@ -17,8 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from .views import health_check
+
 urlpatterns = [
+    path('health/', health_check, name='health_check'),
     path('admin/', admin.site.urls),
     path('', include('apps.accounts.urls')),
     path('', include('apps.tracking.urls')),
 ]
+
+handler404 = 'config.views.page_not_found'
+handler500 = 'config.views.server_error'

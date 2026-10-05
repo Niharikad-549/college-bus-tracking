@@ -38,6 +38,10 @@ class AdminDashboardView(AdminRequiredMixin, TemplateView):
 		return context
 
 
+class AdminLiveFleetView(AdminRequiredMixin, TemplateView):
+	template_name = 'tracking/admin/live_fleet.html'
+
+
 class AdminListView(AdminRequiredMixin, ListView):
 	template_name = 'tracking/admin/object_list.html'
 	paginate_by = 25

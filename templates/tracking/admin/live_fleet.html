@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Live fleet | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page fleet-page">
+    <a class="admin-back-link" href="{% url 'admin_dashboard' %}">← Admin dashboard</a>
+    <div class="admin-page-heading fleet-heading">
+        <div>
+            <p class="form-kicker">ADMIN / LIVE OPERATIONS</p>
+            <h1>Active fleet</h1>
+            <p class="form-intro">Live positions for buses currently on a trip.</p>
+        </div>
+        <span class="fleet-count" data-fleet-count>Loading buses…</span>
+    </div>
+    <div class="fleet-map" data-active-fleet data-active-buses-url="{% url 'api_active_buses' %}" role="application" aria-label="Map of all active buses">
+        <p class="map-status" data-fleet-status role="status">Loading active buses…</p>
+    </div>
+</section>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'js/admin-fleet-map.js' %}" defer></script>
+{% endblock %}

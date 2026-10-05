@@ -10,6 +10,7 @@
                 <div class="route-map student-route-map" data-route-map data-live-student="true"
                     data-stops-url="{% url 'route_stops_api' student_route.id %}"
                     data-location-url="{% url 'api_bus_location' student_route.bus_id %}"
+                    data-eta-url="{% url 'api_bus_eta' student_route.bus_id %}"
                     data-pickup-stop-id="{{ student_pickup_stop_id|default:'' }}"
                     role="application" aria-label="Live map for {{ student_route.route_name }}">
                     <p class="map-status" data-map-status role="status">Loading route...</p>
@@ -40,6 +41,11 @@
                     </div>
                 </div>
                 <div class="student-trip-state" data-trip-status>Checking trip status…</div>
+                <div class="student-eta" data-eta-card>
+                    <span class="student-detail-label">ESTIMATED ARRIVAL</span>
+                    <strong data-eta-message>Calculating arrival…</strong>
+                    <span data-eta-distance></span>
+                </div>
                 <p class="student-live-message" data-location-status role="status">Connecting to the bus…</p>
                 <div class="student-live-details">
                     <div>

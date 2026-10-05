@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Service issue | Campus Transit{% endblock %}
+{% block content %}
+<section class="error-page">
+    <p class="form-kicker">500 / TEMPORARY SERVICE ISSUE</p>
+    <h1>We couldn’t load this page.</h1>
+    <p>Your account and trip data are safe. Try again in a moment.</p>
+    <a class="button button-primary" href="{% url 'home' %}">Return to transit</a>
+</section>
+{% endblock %}

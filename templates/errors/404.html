@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Page not found | Campus Transit{% endblock %}
+{% block content %}
+<section class="error-page">
+    <p class="form-kicker">404 / WRONG TURN</p>
+    <h1>This page isn’t on the route.</h1>
+    <p>The address may have changed or the page may no longer be available.</p>
+    <a class="button button-primary" href="{% url 'home' %}">Return to transit</a>
+</section>
+{% endblock %}

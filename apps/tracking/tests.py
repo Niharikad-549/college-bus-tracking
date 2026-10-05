@@ -1,15 +1,21 @@
 from decimal import Decimal
 from io import StringIO
+import json
+from math import ceil
+from unittest.mock import patch
+from urllib.error import URLError
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.tracking.forms import BusForm, StudentProfileForm, StopForm
 from apps.tracking.models import Bus, BusLocation, Route, Stop, StudentProfile, Trip
-from apps.tracking.services import record_bus_location
+from apps.tracking.services import haversine_distance_km, record_bus_location
+from config.views import server_error
 from rest_framework.test import APIClient
 
 
@@ -49,6 +55,12 @@ class AdminManagementTests(TestCase):
 		self.assertEqual(response.context['total_drivers'], 1)
 		self.assertEqual(response.context['total_students'], 2)
 		self.assertEqual(response.context['active_trips'], 1)
+		self.assertContains(response, reverse('admin_live_fleet'))
+
+	def test_health_check_returns_ok(self):
+		response = self.client.get(reverse('health_check'))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json(), {'status': 'ok'})
 
 	def test_route_stops_api_returns_stops_in_order(self):
 		second_stop = Stop.objects.create(
@@ -258,6 +270,7 @@ class AdminManagementTests(TestCase):
 
 class DriverLocationApiTests(TestCase):
 	def setUp(self):
+		cache.clear()
 		self.driver = User.objects.create_user(
 			username='api_driver', password='DriverPassword123!', role=User.Role.DRIVER
 		)
@@ -389,6 +402,162 @@ class DriverLocationApiTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertTrue(response.json()['trip_status']['is_active'])
 		self.assertEqual(response.json()['location']['id'], latest.pk)
+
+	def test_eta_uses_haversine_fallback_when_osrm_fails(self):
+		location = record_bus_location(bus=self.bus, latitude=20.35, longitude=72.91, speed=0)
+		self.login_as(self.student)
+		with patch('apps.tracking.services.urlopen', side_effect=URLError('OSRM unavailable')):
+			response = self.client.get(reverse('api_bus_eta', args=[self.bus.pk]), {'stop_id': self.stop.pk})
+
+		self.assertEqual(response.status_code, 200)
+		result = response.json()
+		distance = haversine_distance_km(
+			location.latitude,
+			location.longitude,
+			self.stop.latitude,
+			self.stop.longitude,
+		)
+		self.assertEqual(result['method'], 'haversine')
+		self.assertFalse(result['used_osrm'])
+		self.assertEqual(result['distance_km'], round(distance, 2))
+		self.assertEqual(result['eta_minutes'], ceil(distance / 25 * 60))
+		self.assertEqual(result['arrival_state'], 'trip_not_started')
+
+	def test_eta_caches_successful_osrm_result_for_repeated_requests(self):
+		record_bus_location(bus=self.bus, latitude=20.35, longitude=72.91, speed=0)
+		self.login_as(self.student)
+		response_data = {'code': 'Ok', 'routes': [{'duration': 300, 'distance': 2500}]}
+		with patch('apps.tracking.services.urlopen') as mocked_urlopen:
+			mocked_urlopen.return_value.__enter__.return_value.read.return_value = json.dumps(response_data).encode()
+			first = self.client.get(reverse('api_bus_eta', args=[self.bus.pk]), {'stop_id': self.stop.pk})
+			second = self.client.get(reverse('api_bus_eta', args=[self.bus.pk]), {'stop_id': self.stop.pk})
+
+		self.assertEqual(first.status_code, 200)
+		self.assertEqual(second.status_code, 200)
+		self.assertEqual(mocked_urlopen.call_count, 1)
+		self.assertEqual(first.json()['eta_minutes'], 5)
+		self.assertEqual(first.json()['distance_km'], 2.5)
+		self.assertEqual(first.json()['method'], 'osrm')
+		self.assertTrue(first.json()['used_osrm'])
+
+	def test_eta_requires_access_to_the_bus_and_stop(self):
+		url = reverse('api_bus_eta', args=[self.bus.pk])
+		self.login_as(self.other_student)
+		self.assertEqual(self.client.get(url, {'stop_id': self.stop.pk}).status_code, 403)
+
+		self.login_as(self.student)
+		self.assertEqual(self.client.get(url).status_code, 400)
+		self.assertEqual(self.client.get(url, {'stop_id': 99999}).status_code, 404)
+
+		other_route = Route.objects.create(route_name='Other API Route', bus=self.bus)
+		other_stop = Stop.objects.create(
+			route=other_route,
+			stop_name='Other Pickup',
+			latitude=20.38,
+			longitude=72.91,
+			stop_order=1,
+		)
+		self.assertEqual(self.client.get(url, {'stop_id': other_stop.pk}).status_code, 403)
+
+	def test_eta_rejects_malformed_stop_id(self):
+		self.login_as(self.student)
+		response = self.client.get(reverse('api_bus_eta', args=[self.bus.pk]), {'stop_id': 'not-a-number'})
+		self.assertEqual(response.status_code, 400)
+
+	def test_eta_reports_arriving_and_passed_stop_states(self):
+		Trip.objects.create(bus=self.bus, is_active=True)
+		self.login_as(self.student)
+		with patch('apps.tracking.services._request_osrm_eta', return_value={
+			'eta_minutes': 0, 'distance_km': 0.0, 'method': 'osrm', 'used_osrm': True,
+		}):
+			record_bus_location(
+				bus=self.bus,
+				latitude=self.stop.latitude,
+				longitude=self.stop.longitude,
+				speed=0,
+			)
+			arriving = self.client.get(
+				reverse('api_bus_eta', args=[self.bus.pk]),
+				{'stop_id': self.stop.pk},
+			)
+			self.assertEqual(arriving.status_code, 200)
+			self.assertEqual(arriving.json()['arrival_state'], 'arriving_now')
+
+			later_stop = Stop.objects.create(
+				route=self.route,
+				stop_name='Later Stop',
+				latitude=20.3735,
+				longitude=72.904,
+				stop_order=2,
+			)
+			record_bus_location(
+				bus=self.bus,
+				latitude=later_stop.latitude,
+				longitude=later_stop.longitude,
+				speed=0,
+			)
+			passed = self.client.get(
+				reverse('api_bus_eta', args=[self.bus.pk]),
+				{'stop_id': self.stop.pk},
+			)
+			self.assertEqual(passed.status_code, 200)
+			self.assertEqual(passed.json()['arrival_state'], 'passed_stop')
+
+	@override_settings(REST_FRAMEWORK={
+		'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.SessionAuthentication'],
+		'DEFAULT_THROTTLE_RATES': {'driver_location': '1/minute'},
+	})
+	def test_driver_location_endpoint_is_throttled(self):
+		cache.clear()
+		Trip.objects.create(bus=self.bus, is_active=True)
+		self.login_as(self.driver)
+		payload = {'latitude': 20.371, 'longitude': 72.904}
+
+		first = self.post_json('api_driver_location', payload)
+		second = self.post_json('api_driver_location', payload)
+
+		self.assertEqual(first.status_code, 201)
+		self.assertEqual(second.status_code, 429)
+
+	def test_driver_location_endpoint_enforces_csrf(self):
+		csrf_client = APIClient(enforce_csrf_checks=True)
+		self.assertTrue(csrf_client.login(
+			username=self.driver.username,
+			password='DriverPassword123!',
+		))
+
+		response = csrf_client.post(reverse('api_trip_start'), {'bus_id': self.bus.pk}, format='json')
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_active_buses_feed_is_admin_only(self):
+		Trip.objects.create(bus=self.bus, is_active=True)
+		record_bus_location(bus=self.bus, latitude=20.371, longitude=72.904, speed=0)
+		url = reverse('api_active_buses')
+
+		self.login_as(self.student)
+		self.assertEqual(self.client.get(url).status_code, 403)
+
+		self.login_as(self.admin)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(len(response.json()['buses']), 1)
+		self.assertEqual(response.json()['buses'][0]['bus_number'], self.bus.bus_number)
+
+		page = self.client.get(reverse('admin_live_fleet'))
+		self.assertEqual(page.status_code, 200)
+		self.assertContains(page, 'data-active-fleet')
+
+	@override_settings(DEBUG=False)
+	def test_custom_404_page_renders(self):
+		response = self.client.get('/this-page-does-not-exist/')
+		self.assertEqual(response.status_code, 404)
+		self.assertContains(response, 'This page isn’t on the route.', status_code=404)
+
+	def test_custom_500_page_renders(self):
+		response = server_error(RequestFactory().get('/'))
+		self.assertEqual(response.status_code, 500)
+		self.assertContains(response, 'We couldn’t load this page.', status_code=500)
 
 	def test_location_history_keeps_only_the_latest_500_per_bus(self):
 		old_locations = BusLocation.objects.bulk_create([

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -7,11 +9,14 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import throttle_classes
+from rest_framework.settings import api_settings
+from rest_framework.throttling import UserRateThrottle
 
 from apps.accounts.models import User
 
-from .models import Bus, BusLocation, StudentProfile, Trip
-from .services import record_bus_location
+from .models import Bus, BusLocation, Stop, StudentProfile, Trip
+from .services import calculate_eta, haversine_distance_km, record_bus_location
 
 
 class IsDriver(BasePermission):
@@ -19,6 +24,17 @@ class IsDriver(BasePermission):
 
 	def has_permission(self, request, view):
 		return request.user.is_authenticated and request.user.role == User.Role.DRIVER
+
+
+class DriverLocationThrottle(UserRateThrottle):
+	scope = 'driver_location'
+
+	def get_rate(self):
+		return api_settings.DEFAULT_THROTTLE_RATES[self.scope]
+
+
+class EtaQuerySerializer(serializers.Serializer):
+	stop_id = serializers.IntegerField(min_value=1)
 
 
 class TripActionSerializer(serializers.Serializer):
@@ -70,6 +86,19 @@ def get_driver_bus(driver, bus_id=None):
 	return assigned_buses.first()
 
 
+def user_can_view_bus(user, bus):
+	if user.role == User.Role.ADMIN:
+		return True
+	if user.role == User.Role.DRIVER:
+		return bus.driver_id == user.pk
+	if user.role == User.Role.STUDENT:
+		try:
+			return user.student_profile.route.bus_id == bus.pk
+		except (StudentProfile.DoesNotExist, AttributeError):
+			return False
+	return False
+
+
 @api_view(['POST'])
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated, IsDriver])
@@ -119,6 +148,7 @@ def stop_trip(request):
 @api_view(['POST'])
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated, IsDriver])
+@throttle_classes([DriverLocationThrottle])
 def update_bus_location(request):
 	serializer = LocationUpdateSerializer(data=request.data)
 	serializer.is_valid(raise_exception=True)
@@ -148,16 +178,7 @@ def update_bus_location(request):
 @permission_classes([IsAuthenticated])
 def bus_location(request, bus_id):
 	bus = get_object_or_404(Bus, pk=bus_id)
-	user = request.user
-	can_view = user.role == User.Role.ADMIN or (
-		user.role == User.Role.DRIVER and bus.driver_id == user.pk
-	)
-	if user.role == User.Role.STUDENT:
-		try:
-			can_view = user.student_profile.route.bus_id == bus.pk
-		except (StudentProfile.DoesNotExist, AttributeError):
-			can_view = False
-	if not can_view:
+	if not user_can_view_bus(request.user, bus):
 		return Response({'detail': 'You do not have access to this bus location.'}, status=status.HTTP_403_FORBIDDEN)
 
 	location = BusLocation.objects.filter(bus=bus).order_by('-timestamp', '-pk').first()
@@ -178,3 +199,84 @@ def bus_location(request, bus_id):
 			'ended_at': None,
 		},
 	})
+
+
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def bus_eta(request, bus_id):
+	bus = get_object_or_404(Bus, pk=bus_id)
+	if not user_can_view_bus(request.user, bus):
+		return Response({'detail': 'You do not have access to this bus ETA.'}, status=status.HTTP_403_FORBIDDEN)
+
+	query = EtaQuerySerializer(data=request.query_params)
+	query.is_valid(raise_exception=True)
+	stop = get_object_or_404(Stop, pk=query.validated_data['stop_id'], route__bus=bus)
+	if request.user.role == User.Role.STUDENT and request.user.student_profile.route_id != stop.route_id:
+		return Response({'detail': 'You do not have access to this stop ETA.'}, status=status.HTTP_403_FORBIDDEN)
+
+	location = BusLocation.objects.filter(bus=bus).order_by('-timestamp', '-pk').first()
+	if location is None:
+		return Response({'detail': 'This bus has not reported a location yet.'}, status=status.HTTP_409_CONFLICT)
+
+	eta = calculate_eta(bus=bus, stop=stop, location=location)
+	trip_is_active = Trip.objects.filter(bus=bus, is_active=True).exists()
+	distance_to_stop = haversine_distance_km(
+		location.latitude,
+		location.longitude,
+		stop.latitude,
+		stop.longitude,
+	)
+	arrival_state = 'trip_not_started'
+	if trip_is_active:
+		if distance_to_stop <= 0.15:
+			arrival_state = 'arriving_now'
+		else:
+			later_stops = stop.route.stops.filter(stop_order__gt=stop.stop_order)
+			passed_stop = any(
+				haversine_distance_km(
+					location.latitude,
+					location.longitude,
+					later_stop.latitude,
+					later_stop.longitude,
+				) <= 0.35
+				for later_stop in later_stops
+			)
+			arrival_state = 'passed_stop' if passed_stop else 'en_route'
+
+	return Response({
+		'bus_id': bus.pk,
+		'bus_number': bus.bus_number,
+		'stop_id': stop.pk,
+		'stop_name': stop.stop_name,
+		**eta,
+		'arrival_state': arrival_state,
+		'trip_active': trip_is_active,
+		'is_location_stale': timezone.now() - location.timestamp > timedelta(seconds=60),
+	})
+
+
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def active_buses(request):
+	if request.user.role != User.Role.ADMIN:
+		return Response({'detail': 'Only admins can view the fleet map.'}, status=status.HTTP_403_FORBIDDEN)
+
+	buses = []
+	trips = Trip.objects.filter(is_active=True).select_related('bus', 'bus__driver').order_by('bus__bus_number')
+	for trip in trips:
+		bus = trip.bus
+		location = BusLocation.objects.filter(bus=bus).order_by('-timestamp', '-pk').first()
+		route = bus.routes.order_by('pk').first()
+		buses.append({
+			'bus_id': bus.pk,
+			'bus_number': bus.bus_number,
+			'driver_name': (
+				bus.driver.get_full_name() or bus.driver.username
+				if bus.driver else 'Driver not assigned'
+			),
+			'route_name': route.route_name if route else 'Route not assigned',
+			'location': BusLocationSerializer(location).data if location else None,
+		})
+	return Response({'buses': buses})

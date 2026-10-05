@@ -4,12 +4,15 @@ from . import api
 from . import views
 
 urlpatterns = [
+	path('api/buses/<int:bus_id>/eta/', api.bus_eta, name='api_bus_eta'),
+	path('api/admin/active-buses/', api.active_buses, name='api_active_buses'),
 	path('api/driver/trip/start/', api.start_trip, name='api_trip_start'),
 	path('api/driver/trip/stop/', api.stop_trip, name='api_trip_stop'),
 	path('api/driver/location/', api.update_bus_location, name='api_driver_location'),
 	path('api/buses/<int:bus_id>/location/', api.bus_location, name='api_bus_location'),
 	path('api/routes/<int:route_id>/stops/', views.route_stops_api, name='route_stops_api'),
 	path('dashboard/admin/', views.AdminDashboardView.as_view(), name='admin_dashboard'),
+	path('dashboard/admin/live/', views.AdminLiveFleetView.as_view(), name='admin_live_fleet'),
 	path('dashboard/admin/buses/', views.BusListView.as_view(), name='bus_list'),
 	path('dashboard/admin/buses/add/', views.BusCreateView.as_view(), name='bus_add'),
 	path('dashboard/admin/buses/<int:pk>/edit/', views.BusUpdateView.as_view(), name='bus_edit'),

@@ -8,7 +8,10 @@
             <h1>Management dashboard</h1>
             <p class="form-intro">Manage the fleet, routes, stops, and rider assignments.</p>
         </div>
-        <a class="button button-primary" href="{% url 'bus_add' %}">Add a bus <span aria-hidden="true">+</span></a>
+        <div class="admin-dashboard-actions">
+            <a class="button button-quiet" href="{% url 'admin_live_fleet' %}">Live fleet <span aria-hidden="true">◎</span></a>
+            <a class="button button-primary" href="{% url 'bus_add' %}">Add a bus <span aria-hidden="true">+</span></a>
+        </div>
     </div>
 
     <div class="metric-grid" aria-label="Transit totals">

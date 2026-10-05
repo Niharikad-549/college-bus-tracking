@@ -6,6 +6,8 @@
         const isStudentMap = element.dataset.liveStudent === 'true';
         const mapLayout = element.closest('[data-student-map-layout]');
         const liveCard = mapLayout?.querySelector('[data-student-live-card]');
+            const etaMessage = mapLayout?.querySelector('[data-eta-message]');
+            const etaDistance = mapLayout?.querySelector('[data-eta-distance]');
         const locationStatus = liveCard?.querySelector('[data-location-status]')
             || element.parentElement.querySelector('[data-location-status]');
         try {
@@ -137,6 +139,50 @@
                 liveIndicator.classList.toggle('is-stale', isStale);
             };
 
+            const refreshStudentEta = async () => {
+                if (!isStudentMap || !etaMessage || !element.dataset.pickupStopId) {
+                    return;
+                }
+
+                try {
+                    const etaUrl = new URL(element.dataset.etaUrl, window.location.origin);
+                    etaUrl.searchParams.set('stop_id', element.dataset.pickupStopId);
+                    const response = await fetch(etaUrl, {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    const eta = await response.json();
+                    if (!response.ok) {
+                        throw new Error(eta.detail || 'ETA is temporarily unavailable.');
+                    }
+
+                    etaDistance.textContent = eta.distance_km === null || eta.distance_km === undefined
+                        ? ''
+                        : `${Number(eta.distance_km).toFixed(2)} km away`;
+                    if (eta.arrival_state === 'passed_stop') {
+                        etaMessage.textContent = 'Bus has passed your stop';
+                    } else if (eta.arrival_state === 'arriving_now') {
+                        etaMessage.textContent = 'Arriving now';
+                    } else if (eta.arrival_state === 'trip_not_started') {
+                        etaMessage.textContent = 'Trip not started';
+                    } else {
+                        etaMessage.textContent = `Bus will reach your stop in ${eta.eta_minutes} minutes`;
+                    }
+                    etaMessage.parentElement.classList.toggle(
+                        'is-arrival-alert',
+                        eta.arrival_state === 'passed_stop' || eta.arrival_state === 'arriving_now'
+                    );
+                    if (eta.is_location_stale) {
+                        etaDistance.textContent = `${etaDistance.textContent} · Location stale`.trim();
+                    }
+                } catch (error) {
+                    etaMessage.textContent = error.message.includes('location')
+                        ? 'ETA available when the bus shares its location'
+                        : 'ETA temporarily unavailable';
+                    etaDistance.textContent = '';
+                }
+            };
+
             const animateBusTo = (target) => {
                 const targetLatLng = L.latLng(target);
                 if (!busMarker) {
@@ -233,6 +279,7 @@
                     }
                 } finally {
                     locationRequestInProgress = false;
+                    refreshStudentEta();
                 }
             };
 
