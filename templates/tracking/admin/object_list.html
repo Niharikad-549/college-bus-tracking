@@ -24,7 +24,9 @@
             <tbody>
                 {% for row in rows %}
                     <tr>
-                        {% for value in row.values %}<td>{{ value }}</td>{% endfor %}
+                        {% for value in row.values %}
+                            <td>{% if forloop.first and row.detail_url %}<a class="table-primary-link" href="{{ row.detail_url }}">{{ value }}</a>{% else %}{{ value }}{% endif %}</td>
+                        {% endfor %}
                         <td class="row-actions">
                             <a class="text-action" href="{{ row.edit_url }}">Edit</a>
                             <a class="text-action text-action-danger" href="{{ row.delete_url }}">Delete</a>

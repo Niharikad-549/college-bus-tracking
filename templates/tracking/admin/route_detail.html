@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}{{ object.route_name }} | Route | Campus Transit{% endblock %}
+{% block content %}
+<section class="admin-page">
+    <a class="admin-back-link" href="{% url 'route_list' %}">← Back to routes</a>
+    <div class="admin-page-heading">
+        <div>
+            <p class="form-kicker">ADMIN / ROUTE DETAIL</p>
+            <h1>{{ object.route_name }}</h1>
+            <p class="form-intro">Assigned bus: {{ object.bus.bus_number }}</p>
+        </div>
+        <a class="button button-quiet" href="{% url 'route_edit' object.pk %}">Edit route</a>
+    </div>
+    {% include 'tracking/_route_map.html' with route=object %}
+</section>
+{% endblock %}

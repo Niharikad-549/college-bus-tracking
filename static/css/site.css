@@ -146,6 +146,21 @@ button, input { font: inherit; }
 .delete-page { max-width: 680px; padding-top: 46px; }
 .delete-copy { margin: 15px 0 24px; color: var(--muted); line-height: 1.6; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+.table-primary-link { color: var(--green); font-weight: 700; text-decoration: none; }
+.table-primary-link:hover { text-decoration: underline; }
+.route-map-shell { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+.route-map-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.route-map-heading .form-kicker { margin: 0 0 5px; }
+.route-map-heading h2 { margin: 0; font-family: 'Manrope', sans-serif; font-size: 18px; }
+.route-map-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.route-map { position: relative; width: 100%; height: clamp(300px, 48vw, 480px); overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #e7eee8; }
+.route-map .map-status { position: absolute; z-index: 500; top: 10px; right: 10px; left: auto; max-width: calc(100% - 20px); margin: 0; padding: 8px 11px; border: 1px solid rgba(23,63,53,.13); border-radius: 5px; background: rgba(255,255,255,.94); color: var(--muted); font-size: 12px; box-shadow: 0 1px 5px rgba(20,40,30,.12); }
+.route-map .map-status:empty { display: none; }
+.route-stop-marker { display: grid; width: 28px; height: 28px; place-items: center; border: 2px solid white; border-radius: 50%; background: var(--green); color: white; font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 800; box-shadow: 0 2px 7px rgba(16,47,40,.34); }
+.route-stop-popup { min-width: 125px; }
+.route-stop-popup strong, .route-stop-popup span { display: block; }
+.route-stop-popup strong { margin-bottom: 3px; color: var(--ink); font-size: 13px; }
+.route-stop-popup span { color: var(--muted); font-size: 11px; }
 
 @media (min-width: 700px) {
     .metric-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }

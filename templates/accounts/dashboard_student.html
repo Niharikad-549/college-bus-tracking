@@ -5,6 +5,10 @@
     <p class="form-kicker">STUDENT PORTAL</p>
     <h1>Student dashboard</h1>
     <p class="form-intro">Welcome, {{ user.get_full_name|default:user.username }}. Your bus and pickup details will appear here.</p>
-    <div class="dashboard-placeholder"><span class="placeholder-mark">03</span><p>Your next pickup and live bus location will be shown here.</p></div>
+    {% if student_route %}
+        {% include 'tracking/_route_map.html' with route=student_route %}
+    {% else %}
+        <div class="dashboard-placeholder"><span class="placeholder-mark">03</span><p>Your route and pickup have not been assigned yet. Contact the campus transit office to finish your setup.</p></div>
+    {% endif %}
 </section>
 {% endblock %}

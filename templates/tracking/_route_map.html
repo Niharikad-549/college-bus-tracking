@@ -1,0 +1,16 @@
+{% load static %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<div class="route-map-shell">
+    <div class="route-map-heading">
+        <div>
+            <p class="form-kicker">ROUTE MAP</p>
+            <h2>{{ route.route_name }}</h2>
+        </div>
+        <span class="route-map-meta">{{ route.stops.count }} stops</span>
+    </div>
+    <div class="route-map" data-route-map data-stops-url="{% url 'route_stops_api' route.id %}" role="application" aria-label="Map of stops on {{ route.route_name }}">
+        <p class="map-status" data-map-status role="status">Loading route stops...</p>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'js/route-map.js' %}" defer></script>

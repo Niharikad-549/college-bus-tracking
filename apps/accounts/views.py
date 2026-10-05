@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import StudentRegistrationForm
 from .models import User
+from apps.tracking.models import StudentProfile
 
 
 ROLE_DASHBOARDS = {
@@ -69,7 +70,11 @@ def driver_dashboard(request):
 
 @role_required(User.Role.STUDENT)
 def student_dashboard(request):
-	return render(request, 'accounts/dashboard_student.html')
+	try:
+		student_route = request.user.student_profile.route
+	except StudentProfile.DoesNotExist:
+		student_route = None
+	return render(request, 'accounts/dashboard_student.html', {'student_route': student_route})
 
 
 @login_required

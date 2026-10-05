@@ -4,13 +4,17 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 from apps.accounts.models import User
 from apps.accounts.views import role_required
 
 from .forms import BusForm, DriverForm, RouteForm, StopForm, StudentAssignmentForm, StudentProfileForm
-from .models import Bus, BusLocation, Route, Stop, StudentProfile, Trip
+from .models import Bus, Route, Stop, StudentProfile, Trip
+from .serializers import StopSerializer
 
 
 class AdminRequiredMixin:
@@ -81,6 +85,7 @@ class AdminListView(AdminRequiredMixin, ListView):
 					'values': [self.display_value(obj, accessor) for _, accessor in self.columns],
 					'edit_url': self.get_edit_url(obj),
 					'delete_url': self.get_delete_url(obj),
+					'detail_url': self.get_detail_url(obj),
 				}
 				for obj in objects
 			],
@@ -92,6 +97,9 @@ class AdminListView(AdminRequiredMixin, ListView):
 
 	def get_delete_url(self, obj):
 		return reverse(self.delete_url_name, args=[obj.pk])
+
+	def get_detail_url(self, obj):
+		return None
 
 
 class AdminFormViewMixin(AdminRequiredMixin, MessagesSuccessMixin):
@@ -178,6 +186,25 @@ class RouteListView(AdminListView):
 
 	def get_queryset(self):
 		return super().get_queryset().select_related('bus')
+
+	def get_detail_url(self, obj):
+		return reverse('route_detail', args=[obj.pk])
+
+
+class RouteDetailView(AdminRequiredMixin, DetailView):
+	model = Route
+	template_name = 'tracking/admin/route_detail.html'
+
+	def get_queryset(self):
+		return super().get_queryset().select_related('bus').prefetch_related('stops')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def route_stops_api(request, route_id):
+	route = get_object_or_404(Route, pk=route_id)
+	stops = route.stops.all().order_by('stop_order')
+	return Response(StopSerializer(stops, many=True).data)
 
 
 class RouteCreateView(AdminFormViewMixin, CreateView):

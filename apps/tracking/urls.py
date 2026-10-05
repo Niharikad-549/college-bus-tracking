@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+	path('api/routes/<int:route_id>/stops/', views.route_stops_api, name='route_stops_api'),
 	path('dashboard/admin/', views.AdminDashboardView.as_view(), name='admin_dashboard'),
 	path('dashboard/admin/buses/', views.BusListView.as_view(), name='bus_list'),
 	path('dashboard/admin/buses/add/', views.BusCreateView.as_view(), name='bus_add'),
@@ -10,6 +11,7 @@ urlpatterns = [
 	path('dashboard/admin/buses/<int:pk>/delete/', views.BusDeleteView.as_view(), name='bus_delete'),
 	path('dashboard/admin/routes/', views.RouteListView.as_view(), name='route_list'),
 	path('dashboard/admin/routes/add/', views.RouteCreateView.as_view(), name='route_add'),
+	path('dashboard/admin/routes/<int:pk>/', views.RouteDetailView.as_view(), name='route_detail'),
 	path('dashboard/admin/routes/<int:pk>/edit/', views.RouteUpdateView.as_view(), name='route_edit'),
 	path('dashboard/admin/routes/<int:pk>/delete/', views.RouteDeleteView.as_view(), name='route_delete'),
 	path('dashboard/admin/stops/', views.StopListView.as_view(), name='stop_list'),

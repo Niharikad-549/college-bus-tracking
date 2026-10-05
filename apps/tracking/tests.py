@@ -46,6 +46,36 @@ class AdminManagementTests(TestCase):
 		self.assertEqual(response.context['total_students'], 2)
 		self.assertEqual(response.context['active_trips'], 1)
 
+	def test_route_stops_api_returns_stops_in_order(self):
+		second_stop = Stop.objects.create(
+			route=self.route,
+			stop_name='Library',
+			latitude=20.372000,
+			longitude=72.906000,
+			stop_order=2,
+		)
+		self.client.logout()
+
+		response = self.client.get(reverse('route_stops_api', args=[self.route.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual([stop['stop_order'] for stop in response.json()], [1, 2])
+		self.assertEqual(response.json()[0]['stop_name'], self.stop.stop_name)
+		self.assertEqual(response.json()[1]['id'], second_stop.pk)
+		self.assertEqual(response.json()[0]['latitude'], '20.371000')
+
+	def test_route_detail_and_student_dashboard_include_route_map(self):
+		admin_response = self.client.get(reverse('route_detail', args=[self.route.pk]))
+		self.assertEqual(admin_response.status_code, 200)
+		self.assertContains(admin_response, 'data-route-map')
+		self.assertContains(admin_response, reverse('route_stops_api', args=[self.route.pk]))
+
+		self.client.force_login(self.student)
+		student_response = self.client.get(reverse('student_dashboard'))
+		self.assertEqual(student_response.status_code, 200)
+		self.assertContains(student_response, 'data-route-map')
+		self.assertContains(student_response, reverse('route_stops_api', args=[self.route.pk]))
+
 	def test_lists_and_forms_render_for_each_resource(self):
 		for name in ('bus_list', 'route_list', 'stop_list', 'driver_list', 'student_list'):
 			with self.subTest(page=name):
