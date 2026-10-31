@@ -116,10 +116,6 @@ elif DB_ENGINE == 'sqlite':
 else:
     raise ValueError("DB_ENGINE must be either 'sqlite' or 'mysql'.")
 
-if not DEBUG and not DATABASE_URL and DB_ENGINE == 'sqlite':
-    raise ValueError('Set DATABASE_URL for production; SQLite storage is not durable on Render.')
-
-
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
